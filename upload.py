@@ -71,7 +71,7 @@ if not caption:
 
 # --- Upload to TikTok ---
 print(f"Uploading to TikTok with caption: {caption}")
-upload_video(cookies_path, local_file, caption)
+upload_video(cookies_path, local_file, caption, headless=True, on_complete=None)
 
 # --- Delete from Drive after upload ---
 drive.files().delete(fileId=video_id).execute()
