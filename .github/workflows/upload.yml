@@ -3,8 +3,8 @@ name: TikTok Auto Upload
 
 on:
   schedule:
-    - cron: '0 */2 * * *'  # Every 2 hours
-  workflow_dispatch:        # Also allows manual run
+    - cron: '0 */2 * * *'
+  workflow_dispatch:
 
 jobs:
   upload:
@@ -27,3 +27,14 @@ jobs:
           sudo apt-get install -y google-chrome-stable xvfb
 
       - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run upload script
+        env:
+          TIKTOK_COOKIES: ${{ secrets.TIKTOK_COOKIES }}
+          GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+          DISPLAY: :99
+        run: |
+          Xvfb :99 -screen 0 1920x1080x24 &
+          sleep 3
+          python upload.py

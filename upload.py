@@ -66,24 +66,9 @@ caption = video_name.split('|')[0].strip().replace('.mp4', '')
 if not caption:
     caption = "New video #fyp"
 
-# --- Change to base directory so library finds files easily ---
+# --- Change to base directory ---
 os.chdir(base_dir)
 
 # --- Confirm files exist ---
 print("cookies.txt exists:", os.path.exists('cookies.txt'))
-print("video exists:", os.path.exists('video_to_upload.mp4'))
-
-# --- Upload to TikTok ---
-print(f"Uploading: {caption}")
-
-auth = AuthBackend(cookies='cookies.txt')
-
-upload_videos(
-    videos=[{'path': 'video_to_upload.mp4', 'description': caption}],
-    auth=auth,
-    headless=True
-)
-
-# --- Delete from Drive ---
-drive.files().delete(fileId=video_id).execute()
-print("Done! Video deleted from Drive.")
+print("v
