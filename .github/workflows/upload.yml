@@ -3,8 +3,8 @@ name: TikTok Auto Upload
 
 on:
   schedule:
-    - cron: '0 */2 * * *'  # Every 2 hours
-  workflow_dispatch:        # Also allows manual run
+    - cron: '0 */2 * * *'
+  workflow_dispatch:
 
 jobs:
   upload:
@@ -19,23 +19,22 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Install Chrome
+        run: |
+          wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+          sudo sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list'
+          sudo apt-get update
+          sudo apt-get install -y google-chrome-stable xvfb
+
       - name: Install dependencies
         run: pip install -r requirements.txt
-
-      - name: Check credentials
-        env:
-          GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
-        run: |
-          echo "$GOOGLE_CREDENTIALS" | python3 -c "
-          import sys, json
-          data = json.load(sys.stdin)
-          print('Type:', data.get('type'))
-          print('Email:', data.get('client_email'))
-          print('Key starts with:', data.get('private_key', '')[:30])
-          "
 
       - name: Run upload script
         env:
           TIKTOK_COOKIES: ${{ secrets.TIKTOK_COOKIES }}
           GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
-        run: python upload.py
+          DISPLAY: :99
+        run: |
+          Xvfb :99 -screen 0 1920x1080x24 &
+          sleep 2
+          python upload.py
