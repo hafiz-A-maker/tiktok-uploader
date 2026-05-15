@@ -65,7 +65,14 @@ print("cookies.txt exists: " + str(os.path.exists('cookies.txt')))
 print("video exists: " + str(os.path.exists('video_to_upload.mp4')))
 print("Uploading: " + caption)
 
-auth = AuthBackend(cookies='cookies.txt')
+session_id = os.environ.get('TIKTOK_SESSION_ID')
+
+auth = AuthBackend(cookies_list=[{
+    'name': 'sessionid',
+    'value': session_id,
+    'domain': '.tiktok.com',
+    'path': '/'
+}])
 
 upload_videos(
     videos=[{'path': 'video_to_upload.mp4', 'description': caption}],
