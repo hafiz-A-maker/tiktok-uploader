@@ -1,4 +1,20 @@
 import os
+import json
+
+# --- Read secrets from environment variables ---
+cookies_content = os.environ.get('TIKTOK_COOKIES')
+credentials_content = os.environ.get('GOOGLE_CREDENTIALS')
+
+# Write them to temporary files so the libraries can use them
+with open('cookies.txt', 'w') as f:
+    f.write(cookies_content)
+
+with open('credentials.json', 'w') as f:
+    f.write(credentials_content)
+
+# --- Rest of your upload.py code continues below ---
+# (everything from Step 5 from this point onward)
+import os
 import io
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
