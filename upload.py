@@ -22,7 +22,8 @@ with open(cookies_path, 'w') as f:
 with open(credentials_path, 'w') as f:
     f.write(credentials_content)
 
-print("Secrets written successfully.")
+print("Secrets written to:", base_dir)
+print("Cookies path:", cookies_path)
 
 # --- CONFIG ---
 FOLDER_NAME = "TIKTOK_UPLOADS"
