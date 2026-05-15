@@ -8,6 +8,8 @@ from google.oauth2 import service_account
 
 # --- Read secrets ---
 credentials_content = os.environ.get('GOOGLE_CREDENTIALS')
+session_id = os.environ.get('TIKTOK_SESSION_ID')
+
 base_dir = os.path.dirname(os.path.abspath(__file__))
 credentials_path = os.path.join(base_dir, 'credentials.json')
 local_file = os.path.join(base_dir, 'video_to_upload.mp4')
@@ -56,54 +58,50 @@ caption = video_name.split('|')[0].strip().replace('.mp4', '')
 if not caption:
     caption = "New video #fyp"
 
-# --- Upload to TikTok via API ---
-ACCESS_TOKEN = os.environ.get('TIKTOK_ACCESS_TOKEN')
-
+# --- Upload to TikTok using session ID ---
 print(f"Uploading: {caption}")
 
 # Step 1: Initialize upload
-init_url = "https://open.tiktokapis.com/v2/post/publish/video/init/"
 headers = {
-    "Authorization": f"Bearer {ACCESS_TOKEN}",
-    "Content-Type": "application/json"
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+    "Cookie": f"sessionid={session_id}",
+    "Referer": "https://www.tiktok.com/"
 }
+
+# Get upload URL
+init_url = "https://www.tiktok.com/api/upload/init/"
 video_size = os.path.getsize(local_file)
-init_data = {
-    "post_info": {
-        "title": caption,
-        "privacy_level": "SELF_ONLY",
-        "disable_duet": False,
-        "disable_comment": False,
-        "disable_stitch": False
-    },
-    "source_info": {
-        "source": "FILE_UPLOAD",
-        "video_size": video_size,
-        "chunk_size": video_size,
-        "total_chunk_count": 1
-    }
+
+init_payload = {
+    "video_size": video_size,
+    "last_modified": 1000000,
+    "is_h265": 0,
+    "web_id": "1234567890"
 }
-init_resp = requests.post(init_url, headers=headers, json=init_data)
-init_json = init_resp.json()
-print("Init response:", init_json)
 
-publish_id = init_json['data']['publish_id']
-upload_url = init_json['data']['upload_url']
+init_resp = requests.post(init_url, headers=headers, json=init_payload)
+print("Init response:", init_resp.status_code, init_resp.text[:200])
 
-# Step 2: Upload video chunk
+upload_url = init_resp.json().get('upload_url')
+if not upload_url:
+    print("Failed to get upload URL. Session ID may be expired.")
+    exit()
+
+# Step 2: Upload video
 with open(local_file, 'rb') as f:
     video_data = f.read()
 
 upload_headers = {
+    **headers,
     "Content-Type": "video/mp4",
-    "Content-Range": f"bytes 0-{video_size-1}/{video_size}",
     "Content-Length": str(video_size)
 }
-upload_resp = requests.put(upload_url, headers=upload_headers, data=video_data)
-print("Upload status:", upload_resp.status_code)
 
-if upload_resp.status_code in [200, 201]:
+upload_resp = requests.post(upload_url, headers=upload_headers, data=video_data)
+print("Upload response:", upload_resp.status_code)
+
+if upload_resp.status_code == 200:
     drive.files().delete(fileId=video_id).execute()
     print("Done! Video uploaded and deleted from Drive.")
 else:
-    print("Upload failed:", upload_resp.text)
+    print("Upload failed:", upload_resp.text[:300])
