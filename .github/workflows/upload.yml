@@ -3,8 +3,8 @@ name: TikTok Auto Upload
 
 on:
   schedule:
-    - cron: '0 */2 * * *'  # Every 30 minutes
-  workflow_dispatch:          # Also allows manual run
+    - cron: '0 */2 * * *'  # Every 2 hours
+  workflow_dispatch:        # Also allows manual run
 
 jobs:
   upload:
@@ -15,10 +15,22 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.11'
 
       - name: Install dependencies
         run: pip install -r requirements.txt
+
+      - name: Check credentials
+        env:
+          GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+        run: |
+          echo "$GOOGLE_CREDENTIALS" | python3 -c "
+          import sys, json
+          data = json.load(sys.stdin)
+          print('Type:', data.get('type'))
+          print('Email:', data.get('client_email'))
+          print('Key starts with:', data.get('private_key', '')[:30])
+          "
 
       - name: Run upload script
         env:
