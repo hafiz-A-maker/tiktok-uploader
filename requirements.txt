@@ -1,5 +1,6 @@
 google-auth
 google-auth-oauthlib
 google-api-python-client
-tiktok-uploader
+tiktok-uploader==1.0.5
 requests
+selenium
