@@ -63,64 +63,94 @@ if not caption:
     caption = "New video #fyp"
 print("Caption: " + caption)
 
-# --- Upload to TikTok ---
-headers = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    'Referer': 'https://www.tiktok.com/',
-    'Cookie': 'sessionid=' + session_id + '; sessionid_ss=' + session_id
-}
-
+# --- Setup session ---
 video_size = os.path.getsize(local_file)
 
-# Step 1: Initialize upload
-print("Initializing upload...")
-init_url = "https://upload.tiktok.com/api/upload/v1/init/"
-init_payload = {
-    "source": "pfb",
-    "video_size": video_size,
-    "part_num": 1,
-    "part_size": video_size
-}
+session = requests.Session()
+session.headers.update({
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Referer': 'https://www.tiktok.com/upload',
+    'Origin': 'https://www.tiktok.com'
+})
+session.cookies.set('sessionid', session_id, domain='.tiktok.com')
+session.cookies.set('sessionid_ss', session_id, domain='.tiktok.com')
 
-init_resp = requests.post(init_url, headers=headers, json=init_payload)
+# --- Step 1: Get upload signature ---
+print("Getting upload signature...")
+sign_url = "https://www.tiktok.com/api/v1/web/upload/auth/"
+sign_resp = session.get(sign_url)
+print("Sign status: " + str(sign_resp.status_code))
+print("Sign response: " + sign_resp.text[:300])
+
+# --- Step 2: Initialize upload ---
+print("Initializing upload...")
+init_url = "https://www.tiktok.com/api/v1/web/upload/init/"
+init_payload = {
+    "video_size": video_size,
+    "part_size": video_size,
+    "part_num": 1
+}
+init_resp = session.post(init_url, json=init_payload)
 print("Init status: " + str(init_resp.status_code))
-print("Init response: " + init_resp.text[:300])
+print("Init response: " + init_resp.text[:500])
 
 try:
     init_data = init_resp.json()
-    upload_id = init_data.get('data', {}).get('upload_id') or init_data.get('upload_id')
-    upload_url = init_data.get('data', {}).get('upload_url') or init_data.get('upload_url')
+    upload_url = (
+        init_data.get('data', {}).get('upload_url') or
+        init_data.get('upload_url') or
+        init_data.get('data', {}).get('url')
+    )
+    upload_id = (
+        init_data.get('data', {}).get('upload_id') or
+        init_data.get('upload_id')
+    )
+    print("Upload URL: " + str(upload_url))
+    print("Upload ID: " + str(upload_id))
 except Exception as e:
-    print("Failed to parse init response: " + str(e))
+    print("Parse error: " + str(e))
     exit(1)
 
 if not upload_url:
-    # Try alternative endpoint
-    print("Trying alternative upload endpoint...")
-    init_url2 = "https://www.tiktok.com/api/v1/upload/auth/"
-    init_resp2 = requests.get(init_url2, headers=headers)
-    print("Alt init status: " + str(init_resp2.status_code))
-    print("Alt init response: " + init_resp2.text[:300])
+    print("ERROR: No upload URL received.")
+    print("Full response: " + init_resp.text)
     exit(1)
 
-# Step 2: Upload video
+# --- Step 3: Upload video ---
 print("Uploading video...")
 with open(local_file, 'rb') as f:
     video_data = f.read()
 
-upload_headers = {
-    **headers,
-    'Content-Type': 'video/mp4',
-    'Content-Length': str(video_size)
-}
-
-upload_resp = requests.put(upload_url, headers=upload_headers, data=video_data)
+upload_resp = session.put(
+    upload_url,
+    data=video_data,
+    headers={
+        'Content-Type': 'video/mp4',
+        'Content-Length': str(video_size)
+    }
+)
 print("Upload status: " + str(upload_resp.status_code))
 print("Upload response: " + upload_resp.text[:300])
 
+# --- Step 4: Publish video ---
 if upload_resp.status_code in [200, 201, 204]:
-    drive.files().delete(fileId=video_id).execute()
-    print("Done! Video uploaded and deleted from Drive.")
+    print("Publishing video...")
+    publish_url = "https://www.tiktok.com/api/v1/web/upload/publish/"
+    publish_payload = {
+        "upload_id": upload_id,
+        "text": caption,
+        "privacy_level": 0
+    }
+    publish_resp = session.post(publish_url, json=publish_payload)
+    print("Publish status: " + str(publish_resp.status_code))
+    print("Publish response: " + publish_resp.text[:300])
+
+    if publish_resp.status_code == 200:
+        drive.files().delete(fileId=video_id).execute()
+        print("Done! Video posted and deleted from Drive.")
+    else:
+        print("Publish failed.")
+        exit(1)
 else:
     print("Upload failed.")
     exit(1)
